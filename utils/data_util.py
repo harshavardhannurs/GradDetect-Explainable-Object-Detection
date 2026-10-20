@@ -18,6 +18,30 @@ VOC_CLASSES = [
 ]
 CLASS_TO_IDX = {cls_name: idx for idx, cls_name in enumerate(VOC_CLASSES)}
 
+class TransformDataset(Dataset):
+    """
+    Use this class to create dataloaders for fine-tuning the resnet-18 model.
+    """
+
+    def __init__(self, tensors, transform=None):  # tensors: A tuple of tensors
+        super().__init__()
+        if tensors[0].size(0) != tensors[1].size(0):
+            raise AssertionError("Size mismatch between tensors")
+
+        self.tensors = tensors
+        self.transform = transform
+
+    def __getitem__(self, index):
+        if self.transform is None:
+            x = self.tensors[0][index]
+        else:
+            x = self.transform(self.tensors[0][index])
+
+        return x, self.tensors[1][index]
+
+    def __len__(self):
+        return self.tensors[0].size(0)
+
 def extract_image_arrays(dataset: VOCDetection, target_size: Tuple[int, int] = (224, 224)) -> np.ndarray:
 
     image_paths = dataset.images
@@ -85,9 +109,11 @@ def get_voc_train_test_split():
 
     path.mkdir(parents=True, exist_ok=True)
 
+    print('No cached VOC splits found. Downloading the dataset...')
     train_dataset = torchvision.datasets.VOCDetection(root=path, download=True, image_set='train', year='2012')
     test_dataset = torchvision.datasets.VOCDetection(root=path, download=True, image_set='val', year='2012')
 
+    print('Creating VOC splits...')
     train_imgs = extract_image_arrays(train_dataset)
     test_imgs = extract_image_arrays(test_dataset)
 
@@ -95,6 +121,7 @@ def get_voc_train_test_split():
     test_labels = extract_multihot_labels(test_dataset)
 
     try:
+        print('Caching VOC splits...')
         np.save(x_train_path, train_imgs)
         np.save(x_test_path, test_imgs)
         np.save(y_train_path, train_labels)
@@ -103,30 +130,6 @@ def get_voc_train_test_split():
         raise RuntimeError(f"Failed to cache VOC dataset to {path}: {e}") from e
 
     return train_imgs, test_imgs, train_labels, test_labels
-
-class TransformDataset(Dataset):
-    """
-    Use this class to create dataloaders for fine-tuning the resnet-18 model.
-    """
-
-    def __init__(self, tensors, transform=None):  # tensors: A tuple of tensors
-        super().__init__()
-        if tensors[0].size(0) != tensors[1].size(0):
-            raise AssertionError("Size mismatch between tensors")
-
-        self.tensors = tensors
-        self.transform = transform
-
-    def __getitem__(self, index):
-        if self.transform is None:
-            x = self.tensors[0][index]
-        else:
-            x = self.transform(self.tensors[0][index])
-
-        return x, self.tensors[1][index]
-
-    def __len__(self):
-        return self.tensors[0].size(0)
 
 def get_data_loaders(X_train, X_test, y_train, y_test, batch_size=64, shuffle=True):
 
@@ -159,9 +162,6 @@ def get_data_loaders(X_train, X_test, y_train, y_test, batch_size=64, shuffle=Tr
     test_ldr = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     return train_ldr, test_ldr
-
-
-
 
 
 
