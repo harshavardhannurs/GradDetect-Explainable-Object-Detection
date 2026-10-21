@@ -7,22 +7,31 @@ import torchvision
 import torch
 import torch.nn as nn
 
-def load_model() -> nn.Module:
+def load_model(model_name:str = 'vgg') -> nn.Module:
 
     """
-    Future work: Add support to load other pre-trained models. Currently only VGG13 with batch normalization is supported.
+    Loads pretrained VGG13 with batch normalization or ResNet18
     """
-
-    vgg = torchvision.models.vgg13_bn(weights=torchvision.models.VGG13_BN_Weights.DEFAULT)
-
-    for n, p in vgg.named_parameters():
-        p.requires_grad = False
-        if 'classifier.6' in n:
-            p.requires_grad = True
-        print(n, p.requires_grad)
-    vgg.classifier[6] = nn.Linear(4096, 80)
-
-    return vgg
+    match model_name:
+        case 'vgg':
+            vgg = torchvision.models.vgg13_bn(weights=torchvision.models.VGG13_BN_Weights.DEFAULT)
+            for n, p in vgg.named_parameters():
+                p.requires_grad = False
+                if 'classifier' in n:
+                    p.requires_grad = True
+                print(n, p.requires_grad)
+            vgg.classifier[6] = nn.Linear(4096, 80)
+            return vgg
+        case 'resnet':
+            resnet = torchvision.models.resnet18(weights=torchvision.models.ResNet18_Weights.DEFAULT)
+            for n, p in resnet.named_parameters():
+                p.requires_grad = False
+                if 'layer4.1' in n or 'fc' in n:
+                    p.requires_grad = True
+                print(n, p.requires_grad)
+            return resnet
+        case _:
+            raise ValueError(f"Model {model_name} not found.")
 
 def train_model(model, train_ldr: Dalaloader, test_ldr: Dalaloader, epochs: int = 100, device = 'cpu'):
 
