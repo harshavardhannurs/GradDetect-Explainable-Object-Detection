@@ -4,6 +4,7 @@ from collections import defaultdict
 from PIL import Image
 import torch
 from torch.utils.data import Dataset, DataLoader
+from torchvision.transforms import v2
 
 COCO_CLASSES = {
     1: "person",
@@ -91,9 +92,7 @@ COCO_CLASSES = {
 class COCODataset(Dataset):
 
     """
-    img_dir: Path to the directory of images (e.g., .../train2017)
-    ann_file: Path to instances JSON (e.g., .../instances_train2017.json)
-    transform: torchvision v2 transform pipeline
+    Loads image and annotation files from a COCO dataset
     """
 
     def __init__(
@@ -112,7 +111,14 @@ class COCODataset(Dataset):
         if not self.ann_file.is_file():
             raise FileNotFoundError(f"Annotation file {self.ann_file} does not exist.")
 
-        self.transform = transform
+        if transform is None:
+            self.transform = v2.Compose([
+                v2.ToImage(),
+                v2.Resize((224, 224)),
+                v2.ToDtype(torch.float32, scale=True),
+            ]) # Necessary transformations only
+        else:
+            self.transform = transform
 
         with open(ann_file, 'r') as f:
             coco_data = json.load(f)
@@ -139,12 +145,9 @@ class COCODataset(Dataset):
         img_path = self.img_dir / filename
 
         with Image.open(img_path) as img:
-            img = img.convert("RGB")
+            img = self.transform(img.convert("RGB"))
 
-        if self.transform:
-            img = self.transform(img)
-
-        target = torch.zeros(size=(self.num_classes, 1), dtype=torch.float32)
+        target = torch.zeros(size=(self.num_classes, ), dtype=torch.float32)
         categories = self.image_id_to_categories[img_id]
 
         for cat_id in categories:
