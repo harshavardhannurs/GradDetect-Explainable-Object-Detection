@@ -77,7 +77,7 @@ def train_model(model, train_ldr: Dalaloader, val_ldr: Dalaloader, epochs: int =
         with torch.no_grad():
             X, y = next(iter(val_ldr))
             X, y = X.to(device), y.to(device)
-            y_hat = model.to(device)
+            y_hat = model(X)
         predictions = (torch.sigmoid(y_hat) >= 0.5).float()
         acc = (predictions == y).float().mean()
         epoch_val_acc.append(acc.item())
