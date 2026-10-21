@@ -10,19 +10,19 @@ import torch.nn as nn
 def load_model() -> nn.Module:
 
     """
-    Future work: Add support to load other pre-trained models
+    Future work: Add support to load other pre-trained models. Currently only VGG13 with batch normalization is supported.
     """
 
-    alex_net = torchvision.models.alexnet(weights=torchvision.models.AlexNet_Weights.DEFAULT)
-    alex_net.classifier[6] = nn.Linear(alex_net.classifier[6].in_features, 20)
+    vgg = torchvision.models.vgg13_bn(weights=torchvision.models.VGG13_BN_Weights.DEFAULT)
 
-    for n, p in alex_net.named_parameters():
-        if p.requires_grad:
-            p.requires_grad = False
+    for n, p in vgg.named_parameters():
+        p.requires_grad = False
         if 'classifier.6' in n:
             p.requires_grad = True
+        print(n, p.requires_grad)
+    vgg.classifier[6] = nn.Linear(4096, 80)
 
-    return alex_net
+    return vgg
 
 def train_model(model, train_ldr: Dalaloader, test_ldr: Dalaloader, epochs: int = 100, device = 'cpu'):
 
@@ -63,11 +63,11 @@ def train_model(model, train_ldr: Dalaloader, test_ldr: Dalaloader, epochs: int 
 
     return model, epoch_loss, epoch_acc
 
-def save_model(model, path: str = ''):
+def save_model(model: nn.Module, path: Path=None):
 
-    if path == '':
+    if path is None:
         project_root = Path(__file__).resolve().parent.parent
-        path = project_root / 'models' / f'{model.__class__.__name__}'
+        path = project_root / 'models' / f'{model.__class__.__name__}.pt'
     else:
         path = Path(path)
 
@@ -76,5 +76,5 @@ def save_model(model, path: str = ''):
     try:
         torch.save(model.state_dict(), path)
         print(f'Model saved to {path}')
-    except OSError as e:
+    except Exception as e:
         raise RuntimeError(f"Failed to save model to {path}: {e}") from e
