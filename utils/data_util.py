@@ -160,7 +160,7 @@ class COCODataset(Dataset):
     def __len__(self):
         return len(self.image_ids)
 
-def get_dataloader(dataset: Dataset, batch_size=64, shuffle=False, drop_last=False) -> Tuple[DataLoader, DataLoader]:
+def get_dataloader(dataset: Dataset, batch_size=64, shuffle=False, drop_last=False) -> DataLoader:
 
     """
     Create a dataloader for a given dataset
