@@ -1,11 +1,14 @@
-import utils.data_util as du
 import sys
 from pathlib import Path
 
 import numpy as np
+
 import torchvision
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader
+
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
 
 def load_model(model_name:str = 'vgg') -> nn.Module:
 
@@ -33,7 +36,25 @@ def load_model(model_name:str = 'vgg') -> nn.Module:
         case _:
             raise ValueError(f"Model {model_name} not found.")
 
-def train_model(model, train_ldr: Dalaloader, val_ldr: Dalaloader, epochs: int = 100, device = 'cpu'):
+def calculate_metrics(y_true, y_pred):
+
+    """
+    Calculate accuracy, recall, precision, and f1-score for a given set of predictions and targets.
+    """
+    return [
+        accuracy_score(y_true, y_pred),
+        recall_score(
+            y_true, y_pred, average='macro', zero_division=0
+        ),
+        precision_score(
+            y_true, y_pred, average='macro', zero_division=0
+        ),
+        f1_score(
+            y_true, y_pred, average='macro', zero_division=0
+        )
+    ]
+
+def train_model(model, train_ldr: DataLoader, val_ldr: DataLoader, epochs: int = 100, device = 'cpu'):
 
     """
     Trains the model for a specified number of epochs using training and validation dataloaders.
@@ -43,15 +64,18 @@ def train_model(model, train_ldr: Dalaloader, val_ldr: Dalaloader, epochs: int =
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     loss_fn = nn.BCEWithLogitsLoss()
 
-    epoch_loss = []
-    epoch_train_acc = []
-    epoch_val_acc = []
+    epoch_train_loss = np.zeros(shape=(epochs,))
+    epoch_train_metrics = np.zeros(shape=(epochs, 4)) # First column for accuracy, second for recall, third for precision, fourth for f1-score
+
+    epoch_val_loss = np.zeros(shape=(epochs,))
+    epoch_val_metrics = np.zeros(shape=(epochs, 4))
 
     for epochi in range(epochs):
         model.train()
 
-        batch_loss = []
-        batch_acc = []
+        train_losses = []
+        train_targets = []
+        train_predictions = []
 
         for X, y in train_ldr:
 
@@ -60,31 +84,56 @@ def train_model(model, train_ldr: Dalaloader, val_ldr: Dalaloader, epochs: int =
 
             y_hat = model(X)
             predictions = (torch.sigmoid(y_hat) >= 0.5).float()
-            acc = (predictions == y).float().mean()
-            batch_acc.append(acc.item())
 
             loss = loss_fn(y_hat, y)
-            batch_loss.append(loss.item())
+
+            train_losses.append(loss.item())
+
+            train_targets.append(y.cpu().numpy())
+            train_predictions.append(predictions.cpu().numpy())
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-        epoch_loss.append(np.mean(batch_loss))
-        epoch_train_acc.append(np.mean(batch_acc))
+        epoch_train_loss[epochi] = np.mean(train_losses)
+
+        epoch_train_metrics[epochi] = calculate_metrics(
+            np.concatenate(train_targets, axis=0),
+            np.concatenate(train_predictions, axis=0)
+        )
 
         model.eval()
+
+        val_losses = []
+        val_targets = []
+        val_predictions = []
+
         with torch.no_grad():
-            X, y = next(iter(val_ldr))
-            X, y = X.to(device), y.to(device)
-            y_hat = model(X)
-        predictions = (torch.sigmoid(y_hat) >= 0.5).float()
-        acc = (predictions == y).float().mean()
-        epoch_val_acc.append(acc.item())
+            for X, y in val_ldr:
+
+                X, y = X.to(device), y.to(device)
+                y_hat = model(X)
+
+                loss = loss_fn(y_hat, y)
+                predictions = (torch.sigmoid(y_hat) >= 0.5).float()
+
+                val_losses.append(loss.item())
+
+                val_targets.append(y.cpu().numpy())
+                val_predictions.append(predictions.cpu().numpy())
+
+        epoch_val_loss[epochi] = np.mean(val_losses)
+
+        epoch_val_metrics[epochi] = calculate_metrics(
+            np.concatenate(val_targets, axis=0),
+            np.concatenate(val_predictions, axis=0)
+        )
 
         sys.stdout.write(f'\r Epoch {epochi+1}/{epochs}')
+        sys.stdout.flush()
 
-    return model, epoch_loss, epoch_train_acc, epoch_val_acc
+    return model, epoch_train_loss, epoch_train_metrics, epoch_val_loss, epoch_val_metrics
 
 def save_model(model: nn.Module, path: Path=None):
 
