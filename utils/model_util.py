@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from typing import Tuple
 
 import numpy as np
 
@@ -36,7 +37,7 @@ def load_model(model_name:str = 'vgg') -> nn.Module:
         case _:
             raise ValueError(f"Model {model_name} not found.")
 
-def calculate_metrics(y_true, y_pred):
+def calculate_metrics(y_true, y_pred) -> list[float]:
 
     """
     Calculate accuracy, recall, precision, and f1-score for a given set of predictions and targets.
@@ -54,7 +55,8 @@ def calculate_metrics(y_true, y_pred):
         )
     ]
 
-def train_model(model, train_ldr: DataLoader, val_ldr: DataLoader, epochs: int = 100, device = 'cpu'):
+def train_model(model, train_ldr: DataLoader, val_ldr: DataLoader, epochs: int = 100, device = 'cpu') \
+        -> Tuple[nn.Module, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
 
     """
     Trains the model for a specified number of epochs using training and validation dataloaders.
@@ -135,7 +137,7 @@ def train_model(model, train_ldr: DataLoader, val_ldr: DataLoader, epochs: int =
 
     return model, epoch_train_loss, epoch_train_metrics, epoch_val_loss, epoch_val_metrics
 
-def save_model(model: nn.Module, path: Path=None):
+def save_model(model: nn.Module, path: Path=None) -> None:
 
     """
     Saves the model to a specified path. If no path is provided, the model is saved to the 'models' directory.
