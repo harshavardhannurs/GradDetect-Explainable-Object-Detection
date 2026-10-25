@@ -19,14 +19,12 @@ class GradCAM:
         self.gradients = None
         self.activations = None
 
-        # Resolve target layer module dynamically
         if isinstance(target_layer, nn.Module):
             self.target_module = target_layer
         elif isinstance(target_layer, int):
             self.target_module = self.model.features[target_layer]
         elif isinstance(target_layer, str):
             layer_block = getattr(self.model, target_layer)
-            # Pick the final conv layer of the residual block
             self.target_module = layer_block[-1].conv2
         else:
             raise TypeError("Unsupported target_layer type. Pass an int, str, or nn.Module.")
