@@ -74,4 +74,3 @@ class GradCAM:
         finally:
             forward_handle.remove()
             backward_handle.remove()
-
