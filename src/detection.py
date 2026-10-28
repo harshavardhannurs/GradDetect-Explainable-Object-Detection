@@ -1,6 +1,12 @@
+from typing import Tuple
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision.transforms import v2
+
+from src.utils import destandardize_image
 
 class GradCAM:
 
@@ -52,6 +58,8 @@ class GradCAM:
                 torch.sigmoid(y_hat[0]) >= 0.5
             )[0].detach().cpu()
 
+            predicted_probs = torch.sigmoid(y_hat[0])[predicted_class_ids].detach().cpu()
+
             class_cams = []
 
             for target_id in predicted_class_ids:
@@ -60,18 +68,17 @@ class GradCAM:
 
                 score = y_hat[0, target_id] # 0 because we are using batch size 1
 
-                score.backward()
+                score.backward(retain_graph=True)
+                # retain_graph=True, because after first backward pass, PyTorch deletes the computation graph to free up the memory.
 
                 # Calculate weight(alpha) for each channel k
                 weights = self.gradients.mean(dim=(0, 2, 3))
 
                 # Multiply each channel k by weight(alpha) k
                 activations = self.activations[0]
-                for i in range(activations.shape[0]):
-                    activations[i] *= weights[i]
 
                 # Sum across channels and apply ReLU
-                cam = torch.sum(activations, dim=0)
+                cam = (activations * weights[:, None, None]).sum(dim=0)
                 cam = F.relu(cam)
 
                 # Normalize between 0 and 1
@@ -81,8 +88,61 @@ class GradCAM:
 
                 class_cams.append(cam.detach().cpu())
 
-            return class_cams, predicted_class_ids
+            return class_cams, predicted_class_ids, predicted_probs
 
         finally:
             forward_handle.remove()
             backward_handle.remove()
+
+def detect_objects(
+        img,
+        model,
+        threshold=.5,
+        device='cpu'
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+
+    """
+    `img` is assumed to be standardized.
+    """
+
+    if not isinstance(img, torch.Tensor):
+        raise TypeError(f"Input image must be of type torch.Tensor.")
+
+    if img.ndim != 4:
+        raise ValueError(f"Input image must have 4 dimensions (1, 3, H, W).")
+
+    target_layer = None
+    if model.__class__.__name__ == 'VGG':
+        target_layer = 31
+    elif model.__class__.__name__ == 'ResNet':
+        target_layer = 'layer4'
+
+    gc = GradCAM(model, target_layer=target_layer, device=device)
+
+    class_cams, predicted_class_ids, predicted_probs = gc.generate(img)
+
+    resize_cam = v2.Resize((img.shape[-2], img.shape[-1]))
+
+    objs = np.zeros(shape=(len(class_cams), 4))
+
+    for i in range(len(class_cams)):
+
+        cam = class_cams[i]
+        cam = cam.unsqueeze(dim=0)
+        cam = resize_cam(cam)
+        cam = cam > threshold
+        cam = cam.squeeze(dim=0)
+
+        ys, xs = cam.nonzero(as_tuple=True)
+
+        x_min, x_max = xs.min(), xs.max()
+        y_min, y_max = ys.min(), ys.max()
+
+        objs[i, :] = [x_min, y_min, x_max, y_max]
+
+    return (
+        destandardize_image(img.squeeze(dim=0)).permute(1, 2, 0).detach().cpu().numpy(),
+        objs,
+        predicted_class_ids.numpy(),
+        predicted_probs.numpy()
+    )

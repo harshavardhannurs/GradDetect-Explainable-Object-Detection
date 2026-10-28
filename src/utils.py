@@ -103,7 +103,7 @@ def calculate_metrics(y_true, y_pred) -> list[float]:
         )
     ]
 
-def denormalize(
+def destandardize_image(
         X: torch.Tensor,
         mean: Sequence[float] = (0.485, 0.456, 0.406),
         std: Sequence[float] = (0.229, 0.224, 0.225)
