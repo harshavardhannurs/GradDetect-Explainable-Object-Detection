@@ -35,10 +35,9 @@ class GradCAM:
     def backward_hook(self, module, grad_in, grad_out):
         self.gradients = grad_out[0].detach().clone()
 
-    def generate(self, X, target_class_index):
+    def generate(self, X):
 
         self.model.eval()
-        self.model.zero_grad()
 
         self.model.to(self.device)
         X = X.to(self.device)
@@ -48,28 +47,41 @@ class GradCAM:
 
         try:
             y_hat = self.model(X)
-            score = y_hat[0, target_class_index] # 0 because we are using batch size 1
 
-            score.backward()
+            predicted_class_ids = torch.where(
+                torch.sigmoid(y_hat[0]) >= 0.5
+            )[0].detach().cpu()
 
-            # Calculate weight(alpha) for each channel k
-            weights = self.gradients.mean(dim=(0, 2, 3))
+            class_cams = []
 
-            # Multiply each channel k by weight(alpha) k
-            activations = self.activations[0]
-            for i in range(activations.shape[0]):
-                activations[i] *= weights[i]
+            for target_id in predicted_class_ids:
 
-            # Sum across channels and apply ReLU
-            cam = torch.sum(activations, dim=0)
-            cam = F.relu(cam)
+                self.model.zero_grad()
 
-            # Normalize between 0 and 1
-            cam_min, cam_max = cam.min(), cam.max()
-            if cam_max > cam_min:
-                cam = (cam - cam_min) / (cam_max - cam_min)
+                score = y_hat[0, target_id] # 0 because we are using batch size 1
 
-            return cam.detach().cpu().numpy()
+                score.backward()
+
+                # Calculate weight(alpha) for each channel k
+                weights = self.gradients.mean(dim=(0, 2, 3))
+
+                # Multiply each channel k by weight(alpha) k
+                activations = self.activations[0]
+                for i in range(activations.shape[0]):
+                    activations[i] *= weights[i]
+
+                # Sum across channels and apply ReLU
+                cam = torch.sum(activations, dim=0)
+                cam = F.relu(cam)
+
+                # Normalize between 0 and 1
+                cam_min, cam_max = cam.min(), cam.max()
+                if cam_max > cam_min:
+                    cam = (cam - cam_min) / (cam_max - cam_min)
+
+                class_cams.append(cam.detach().cpu())
+
+            return class_cams, predicted_class_ids
 
         finally:
             forward_handle.remove()
