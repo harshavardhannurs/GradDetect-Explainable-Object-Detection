@@ -40,9 +40,9 @@ The project uses the **Common Objects in Context (COCO 2017)** dataset, which co
     - `2017 Train/Val annotations`
 2. Unzip and place the content in the following structure:
    ```text
-   <project_root>/data/coc2017/annotations
-   <project_root>/data/coc2017/train2017
-   <project_root>/data/coc2017/val2017
+   <project_root>/data/coco2017/annotations
+   <project_root>/data/coco2017/train2017
+   <project_root>/data/coco2017/val2017
    ```
 
 ---
