@@ -3,8 +3,7 @@
 ## Quick Overview
 GradDetect is a project designed for **Explainable Object Detection** using the **Grad-CAM** (Gradient-weighted Class Activation Mapping) technique. Grad-CAM provides visual explanations for decisions made by Convolutional Neural Network (CNN)-based models, making them more transparent and interpretable.
 
-**Citation:**
-> Selvaraju, R. R., Cogswell, M., Das, A., Vedantam, R., Parikh, D., & Batra, D. (2017). Grad-CAM: Visual Explanations from Deep Networks via Gradient-Based Localization. In *Proceedings of the IEEE International Conference on Computer Vision (ICCV)*.
+---
 
 ## The Math
 Grad-CAM uses the gradients of any target concept (e.g., a specific object class), flowing into the last convolutional layer to produce a coarse localization map highlighting the important regions in the image for predicting the concept.
@@ -25,6 +24,9 @@ We then perform a weighted combination of forward activation maps and follow it 
 $$L_{Grad-CAM}^c = \text{ReLU}\left( \sum_k \alpha_k^c A^k \right)$$
 
 Applying **ReLU** ensures that we only focus on features that have a *positive* influence on the class of interest.
+
+**Citation:**
+> Selvaraju, R. R., Cogswell, M., Das, A., Vedantam, R., Parikh, D., & Batra, D. (2017). Grad-CAM: Visual Explanations from Deep Networks via Gradient-Based Localization. In *Proceedings of the IEEE International Conference on Computer Vision (ICCV)*.
 
 ---
 
