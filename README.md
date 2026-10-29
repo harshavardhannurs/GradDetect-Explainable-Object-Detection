@@ -103,4 +103,4 @@ The initial prototype was trained for only 20 epochs (taking ~14 hours). While t
 
 ---
 
-<sub>The content of this README was generated and formatted using AI. The choice of content and the overall direction of the document, however, remains mine.</sub>
+<sub>The content of this file was formatted using AI.</sub>
