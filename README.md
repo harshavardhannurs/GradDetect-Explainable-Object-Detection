@@ -65,7 +65,13 @@ The `detect_objects` function in `src.detection` handles the inference pipeline:
 ---
 
 ## Running The Code
-To see the first working prototype, run the Jupyter notebook:
+1. **Environment Setup:** Create a conda environment and install all necessary packages:
+   ```bash
+   conda create -n graddetect python=3.12
+   conda activate graddetect
+   pip install torch torchvision torchaudio pillow numpy matplotlib jupyter
+   ```
+2. **Execution:** To see the first working prototype, run the Jupyter notebook:
 `notebooks/script.ipynb`
 
 ### Image Preprocessing
